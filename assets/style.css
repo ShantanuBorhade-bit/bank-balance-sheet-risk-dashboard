@@ -1,19 +1,78 @@
-.block-container{
-    padding-top:2rem;
+/* ---------- Main Layout ---------- */
+
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    max-width: 95%;
 }
 
-div[data-testid="metric-container"]{
-    background:#f8f9fb;
-    border-radius:12px;
-    padding:18px;
-    border-left:5px solid #0A6EBD;
-    box-shadow:0 2px 8px rgba(0,0,0,.08);
+/* ---------- Sidebar ---------- */
+
+section[data-testid="stSidebar"] {
+    background: #111827;
 }
 
-h1{
-    color:#0A4D68;
+section[data-testid="stSidebar"] * {
+    color: white;
 }
 
-h2,h3{
-    color:#205295;
+/* ---------- KPI Cards ---------- */
+
+div[data-testid="metric-container"] {
+    background: linear-gradient(135deg, #1E3A8A, #2563EB);
+    border-radius: 14px;
+    padding: 18px;
+    border: none;
+    box-shadow: 0px 4px 14px rgba(0,0,0,0.25);
+    transition: 0.3s;
+}
+
+div[data-testid="metric-container"]:hover {
+    transform: translateY(-3px);
+}
+
+div[data-testid="metric-container"] label {
+    color: #E5E7EB !important;
+    font-weight: 600;
+}
+
+div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+/* ---------- Headings ---------- */
+
+h1 {
+    color: #2563EB;
+    font-weight: 700;
+}
+
+h2,
+h3 {
+    color: #1D4ED8;
+}
+
+/* ---------- Tabs ---------- */
+
+button[data-baseweb="tab"] {
+    font-weight: 600;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #2563EB !important;
+}
+
+/* ---------- Success / Info Boxes ---------- */
+
+div[data-testid="stAlert"] {
+    border-radius: 12px;
+}
+
+/* ---------- Dataframe ---------- */
+
+div[data-testid="stDataFrame"] {
+    border-radius: 12px;
+    overflow: hidden;
 }

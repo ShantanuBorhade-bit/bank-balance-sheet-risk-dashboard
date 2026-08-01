@@ -16,14 +16,19 @@ from src.charts import (
     bar_chart,
     asset_allocation,
     liability_allocation,
+    risk_overview,
+    shock_analysis_chart,
 )
 from src.report import generate_pdf
 from src.ui import (
     show_header,
     show_overall_risk,
     show_kpis,
+    show_scorecard,
+    show_statistics,
+    show_dashboard_summary,
 )
-
+from src.data_quality import show_data_quality
 
 # --------------------------------------------------
 # Page Config
@@ -53,35 +58,42 @@ def load_css():
 
 load_css()
 
+# ==================================================
+# SIDEBAR
+# ==================================================
 
-# --------------------------------------------------
-# Sidebar
-# --------------------------------------------------
+st.sidebar.title("🏦 Bank Risk Dashboard")
 
-st.sidebar.title("🏦 Dashboard")
+st.sidebar.markdown("---")
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Balance Sheet CSV",
-    type="csv",
-)
+# ---------------------------
+# Data
+# ---------------------------
 
-with st.sidebar.expander("Expected CSV Format"):
+with st.sidebar.expander("📂 Data", expanded=True):
 
-    st.code(
-        """side,category,item,amount,maturity,risk_weight
-asset,Loans,Retail Loans,250000,long,0.75
-liability,Deposits,Savings Deposits,300000,short,
-equity,Capital,CET1 Capital,180000,long,
-"""
+    uploaded_file = st.file_uploader(
+        "Upload Balance Sheet CSV",
+        type=["csv"],
     )
 
-benchmark = st.sidebar.slider(
-    "Minimum CET1 Benchmark (%)",
-    4.0,
-    15.0,
-    8.0,
-)
+    if uploaded_file is None:
+        st.info("Using sample dataset")
+    else:
+        st.success("Custom dataset loaded")
 
+# ---------------------------
+# Risk Settings
+# ---------------------------
+
+with st.sidebar.expander("🎯 Risk Settings", expanded=True):
+
+    benchmark = st.slider(
+        "Minimum CET1 Benchmark (%)",
+        4.0,
+        15.0,
+        8.0,
+    )
 
 # --------------------------------------------------
 # Load Data
@@ -93,9 +105,6 @@ try:
 
         df = load_uploaded_data(uploaded_file)
 
-        st.sidebar.success(
-            "Custom balance sheet loaded."
-        )
 
     else:
 
@@ -103,9 +112,6 @@ try:
             "data/sample_balance_sheet.csv"
         )
 
-        st.sidebar.info(
-            "Using sample balance sheet."
-        )
 
 except Exception as e:
 
@@ -130,6 +136,19 @@ overall = overall_risk(
     benchmark,
 )
 
+# ---------------------------
+# Dashboard Info
+# ---------------------------
+
+with st.sidebar.expander("📊 Dashboard Info", expanded=False):
+
+    st.metric("Records", len(df))
+
+    st.metric(
+        "Overall Risk",
+        overall.replace("🟢", "").replace("🟡", "").replace("🔴", "").strip(),
+    )
+
 summary = generate_summary(
     capital,
     liquidity,
@@ -149,6 +168,27 @@ total_assets = (
 )
 
 
+# ---------------------------
+# Help
+# ---------------------------
+
+with st.sidebar.expander("ℹ About"):
+
+    st.markdown(
+        """
+**Bank Balance Sheet Risk Dashboard**
+
+Version **1.0**
+
+Built using:
+
+- Streamlit
+- Plotly
+- Pandas
+- ReportLab
+"""
+    )
+
 # --------------------------------------------------
 # Header
 # --------------------------------------------------
@@ -158,31 +198,6 @@ show_header()
 show_overall_risk(overall)
 
 
-
-cet1 = capital["CET1 Ratio"] * 100
-
-if cet1 >= benchmark:
-    st.success(
-        f"✅ CET1 Ratio ({cet1:.2f}%) meets the selected benchmark ({benchmark:.2f}%)."
-    )
-else:
-    st.error(
-        f"❌ CET1 Ratio ({cet1:.2f}%) is below the selected benchmark ({benchmark:.2f}%)."
-    )
-
-st.subheader("📋 Executive Summary")
-
-for point in summary:
-    st.write(point)
-
-st.divider()
-
-st.subheader("💡 Recommended Actions")
-
-for i, action in enumerate(actions, start=1):
-    st.write(f"**{i}.** {action}")
-
-st.divider()
 
 show_kpis(
     capital,
@@ -216,6 +231,55 @@ overview_tab, capital_tab, liquidity_tab, interest_tab, simulator_tab, report_ta
 
 with overview_tab:
 
+    cet1 = capital["CET1 Ratio"] * 100
+
+    # ==========================================
+    # Row 1
+    # ==========================================
+
+    left, right = st.columns([2, 1], gap="large")
+
+    with left:
+
+        show_dashboard_summary(
+            df,
+            capital,
+            liquidity,
+            interest,
+        )
+
+        st.markdown("### 📋 Executive Summary")
+
+        for point in summary:
+            st.write(f"• {point}")
+
+        st.markdown("### 💡 Recommended Actions")
+
+        for action in actions:
+            st.write(f"✓ {action}")
+
+    with right:
+
+        show_scorecard(
+            capital,
+            liquidity,
+            interest,
+            benchmark,
+        )
+
+        if cet1 >= benchmark:
+            st.success("Capital benchmark satisfied.")
+        else:
+            st.error("Capital benchmark not satisfied.")
+
+        show_data_quality(df)
+
+    st.divider()
+
+    # ==========================================
+    # Row 2
+    # ==========================================
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -234,13 +298,62 @@ with overview_tab:
 
     st.divider()
 
-    st.subheader("Balance Sheet Data")
+    # ==========================================
+    # Dataset
+    # ==========================================
 
-    st.dataframe(
-        df,
-        use_container_width=True,
-    )
+    with st.expander("📄 Balance Sheet Data", expanded=False):
 
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            side_filter = st.selectbox(
+                "Filter by Side",
+                ["All"] + sorted(df["side"].unique()),
+            )
+
+        with c2:
+
+            search = st.text_input(
+                "Search Item",
+                placeholder="Search...",
+            )
+
+        filtered_df = df.copy()
+
+        if side_filter != "All":
+            filtered_df = filtered_df[
+                filtered_df["side"] == side_filter
+            ]
+
+        if search:
+            filtered_df = filtered_df[
+                filtered_df["item"].str.contains(
+                    search,
+                    case=False,
+                    na=False,
+                )
+            ]
+
+        st.dataframe(
+            filtered_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        csv = filtered_df.to_csv(index=False).encode()
+
+        st.download_button(
+            "📥 Download Filtered CSV",
+            csv,
+            "filtered_balance_sheet.csv",
+            "text/csv",
+        )
+
+        st.caption(
+            f"Showing {len(filtered_df)} of {len(df)} records."
+        )
 
 # --------------------------------------------------
 # Capital Risk
@@ -378,6 +491,14 @@ with simulator_tab:
         st.info(
             "No change in estimated net interest income."
         )
+
+    st.plotly_chart(
+    shock_analysis_chart(
+        interest["Repricing Gap"],
+        shock,
+    ),
+    use_container_width=True,
+)
 # --------------------------------------------------
 # Report
 # --------------------------------------------------
