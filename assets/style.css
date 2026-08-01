@@ -1,0 +1,19 @@
+.block-container{
+    padding-top:2rem;
+}
+
+div[data-testid="metric-container"]{
+    background:#f8f9fb;
+    border-radius:12px;
+    padding:18px;
+    border-left:5px solid #0A6EBD;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+h1{
+    color:#0A4D68;
+}
+
+h2,h3{
+    color:#205295;
+}
