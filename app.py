@@ -17,7 +17,7 @@ from src.charts import (
     asset_allocation,
     liability_allocation,
 )
-
+from src.report import generate_pdf
 from src.ui import (
     show_header,
     show_overall_risk,
@@ -198,13 +198,14 @@ st.divider()
 # Tabs
 # --------------------------------------------------
 
-overview_tab, capital_tab, liquidity_tab, interest_tab, simulator_tab = st.tabs(
+overview_tab, capital_tab, liquidity_tab, interest_tab, simulator_tab, report_tab = st.tabs(
     [
         "📊 Overview",
         "🏛 Capital Risk",
         "💧 Liquidity Risk",
         "📈 Interest Rate Risk",
         "⚡ Rate Shock Simulator",
+        "📄 Report",
     ]
 )
 
@@ -330,7 +331,7 @@ with interest_tab:
         ),
         use_container_width=True,
     )
- # --------------------------------------------------
+# --------------------------------------------------
 # Rate Shock Simulator
 # --------------------------------------------------
 
@@ -377,3 +378,24 @@ with simulator_tab:
         st.info(
             "No change in estimated net interest income."
         )
+# --------------------------------------------------
+# Report
+# --------------------------------------------------
+
+with report_tab:
+
+    st.subheader("📄 Export Report")
+
+    pdf = generate_pdf(
+        capital,
+        liquidity,
+        interest,
+        overall,
+    )
+
+    st.download_button(
+        label="📥 Download PDF Report",
+        data=pdf,
+        file_name="bank_risk_report.pdf",
+        mime="application/pdf",
+    )
