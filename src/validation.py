@@ -1,7 +1,7 @@
 """
 validation.py
 
-Functions for loading and validating balance sheet data.
+Data loading and validation utilities.
 """
 
 import pandas as pd
@@ -16,27 +16,32 @@ REQUIRED_COLUMNS = {
 }
 
 
-def load_data(filepath: str) -> pd.DataFrame:
+def validate_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Load CSV into a DataFrame.
-    """
-    return pd.read_csv(filepath)
-
-
-def validate_dataframe(df: pd.DataFrame):
-    """
-    Validate the uploaded balance sheet.
+    Validate the structure of a balance sheet DataFrame.
     """
 
     missing = REQUIRED_COLUMNS - set(df.columns)
 
     if missing:
         raise ValueError(
-            f"Missing required columns: {', '.join(sorted(missing))}"
+            "Missing required columns: "
+            + ", ".join(sorted(missing))
         )
 
-    df["side"] = df["side"].str.lower().str.strip()
-    df["maturity"] = df["maturity"].str.lower().str.strip()
+    df["side"] = (
+        df["side"]
+        .astype(str)
+        .str.lower()
+        .str.strip()
+    )
+
+    df["maturity"] = (
+        df["maturity"]
+        .astype(str)
+        .str.lower()
+        .str.strip()
+    )
 
     df["amount"] = pd.to_numeric(
         df["amount"],
@@ -49,6 +54,28 @@ def validate_dataframe(df: pd.DataFrame):
     )
 
     if df["amount"].isna().any():
-        raise ValueError("Invalid amount values.")
+        raise ValueError(
+            "Column 'amount' contains invalid values."
+        )
 
     return df
+
+
+def load_default_data(filepath: str) -> pd.DataFrame:
+    """
+    Load the default CSV.
+    """
+
+    df = pd.read_csv(filepath)
+
+    return validate_dataframe(df)
+
+
+def load_uploaded_data(uploaded_file) -> pd.DataFrame:
+    """
+    Load an uploaded CSV file.
+    """
+
+    df = pd.read_csv(uploaded_file)
+
+    return validate_dataframe(df)
