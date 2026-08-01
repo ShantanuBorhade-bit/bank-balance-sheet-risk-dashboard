@@ -1,10 +1,15 @@
-def overall_risk(capital, liquidity, interest):
+def overall_risk(capital, liquidity, interest, benchmark=8.0):
+    """
+    benchmark is the minimum acceptable CET1 Ratio in %
+    """
 
     score = 0
 
-    if capital["CET1 Ratio"] < 0.08:
+    cet1 = capital["CET1 Ratio"] * 100
+
+    if cet1 < benchmark:
         score += 2
-    elif capital["CET1 Ratio"] < 0.10:
+    elif cet1 < benchmark + 2:
         score += 1
 
     if liquidity["Coverage Ratio"] < 1:

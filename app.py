@@ -4,17 +4,29 @@ from src.validation import (
     load_default_data,
     load_uploaded_data,
 )
-
+from src.actions import generate_actions
 from src.capital_risk import capital_summary
 from src.liquidity_risk import liquidity_summary
 from src.interest_rate_risk import interest_rate_summary
+from src.simulator import simulate_rate_shock
 from src.dashboard import overall_risk
-from src.utils import risk_status
-from src.charts import create_bar_chart
+from src.recommendations import generate_summary
+from src.charts import (
+    capital_gauge,
+    bar_chart,
+    asset_allocation,
+    liability_allocation,
+)
+
+from src.ui import (
+    show_header,
+    show_overall_risk,
+    show_kpis,
+)
 
 
 # --------------------------------------------------
-# Page Configuration
+# Page Config
 # --------------------------------------------------
 
 st.set_page_config(
@@ -25,7 +37,7 @@ st.set_page_config(
 
 
 # --------------------------------------------------
-# Load Custom CSS
+# CSS
 # --------------------------------------------------
 
 def load_css():
@@ -50,7 +62,7 @@ st.sidebar.title("🏦 Dashboard")
 
 uploaded_file = st.sidebar.file_uploader(
     "Upload Balance Sheet CSV",
-    type=["csv"],
+    type="csv",
 )
 
 with st.sidebar.expander("Expected CSV Format"):
@@ -65,9 +77,9 @@ equity,Capital,CET1 Capital,180000,long,
 
 benchmark = st.sidebar.slider(
     "Minimum CET1 Benchmark (%)",
-    min_value=4.0,
-    max_value=15.0,
-    value=8.0,
+    4.0,
+    15.0,
+    8.0,
 )
 
 
@@ -82,7 +94,7 @@ try:
         df = load_uploaded_data(uploaded_file)
 
         st.sidebar.success(
-            "✅ Custom balance sheet loaded."
+            "Custom balance sheet loaded."
         )
 
     else:
@@ -92,28 +104,44 @@ try:
         )
 
         st.sidebar.info(
-            "Using sample dataset."
+            "Using sample balance sheet."
         )
 
 except Exception as e:
 
     st.error(str(e))
-
     st.stop()
 
 
 # --------------------------------------------------
-# Calculate Metrics
+# Calculations
 # --------------------------------------------------
 
 capital = capital_summary(df)
+
 liquidity = liquidity_summary(df)
+
 interest = interest_rate_summary(df)
 
 overall = overall_risk(
     capital,
     liquidity,
     interest,
+    benchmark,
+)
+
+summary = generate_summary(
+    capital,
+    liquidity,
+    interest,
+    benchmark,
+)
+
+actions = generate_actions(
+    capital,
+    liquidity,
+    interest,
+    benchmark,
 )
 
 total_assets = (
@@ -125,91 +153,42 @@ total_assets = (
 # Header
 # --------------------------------------------------
 
-st.title("🏦 Bank Balance Sheet Risk Dashboard")
+show_header()
 
-st.markdown(
-"""
-Analyze a bank balance sheet across:
-
-- Capital Risk
-- Liquidity Risk
-- Interest Rate Risk
-
-using simplified educational risk models.
-"""
-)
-
-st.divider()
+show_overall_risk(overall)
 
 
-# --------------------------------------------------
-# Overall Risk
-# --------------------------------------------------
 
-st.success(
-    f"### Overall Risk Rating : {overall}"
-)
+cet1 = capital["CET1 Ratio"] * 100
 
-
-# --------------------------------------------------
-# Executive Summary
-# --------------------------------------------------
+if cet1 >= benchmark:
+    st.success(
+        f"✅ CET1 Ratio ({cet1:.2f}%) meets the selected benchmark ({benchmark:.2f}%)."
+    )
+else:
+    st.error(
+        f"❌ CET1 Ratio ({cet1:.2f}%) is below the selected benchmark ({benchmark:.2f}%)."
+    )
 
 st.subheader("📋 Executive Summary")
 
-capital_status = risk_status(
-    capital["CET1 Ratio"] * 100,
-    8,
-    10,
-)
+for point in summary:
+    st.write(point)
 
-liquidity_status = (
-    "🟢 Healthy"
-    if liquidity["Excess Liquidity"] >= 0
-    else "🔴 Shortfall"
-)
+st.divider()
 
-interest_status = (
-    "🟢 Balanced"
-    if interest["Classification"] == "Balanced"
-    else "🟡 Monitor"
-)
+st.subheader("💡 Recommended Actions")
 
-st.info(
-f"""
-**Capital Risk:** {capital_status}
+for i, action in enumerate(actions, start=1):
+    st.write(f"**{i}.** {action}")
 
-**Liquidity Risk:** {liquidity_status}
+st.divider()
 
-**Interest Rate Risk:** {interest_status}
-"""
-)
-
-
-# --------------------------------------------------
-# KPI Cards
-# --------------------------------------------------
-
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric(
-    "CET1 Ratio",
-    f"{capital['CET1 Ratio']*100:.2f}%"
-)
-
-col2.metric(
-    "Coverage Ratio",
-    f"{liquidity['Coverage Ratio']:.2f}x"
-)
-
-col3.metric(
-    "Repricing Gap",
-    f"{interest['Repricing Gap']:,.0f}"
-)
-
-col4.metric(
-    "Total Assets",
-    f"{total_assets:,.0f}"
+show_kpis(
+    capital,
+    liquidity,
+    interest,
+    total_assets,
 )
 
 st.divider()
@@ -219,12 +198,13 @@ st.divider()
 # Tabs
 # --------------------------------------------------
 
-overview_tab, capital_tab, liquidity_tab, interest_tab = st.tabs(
+overview_tab, capital_tab, liquidity_tab, interest_tab, simulator_tab = st.tabs(
     [
         "📊 Overview",
-        "🏛️ Capital Risk",
+        "🏛 Capital Risk",
         "💧 Liquidity Risk",
         "📈 Interest Rate Risk",
+        "⚡ Rate Shock Simulator",
     ]
 )
 
@@ -235,7 +215,25 @@ overview_tab, capital_tab, liquidity_tab, interest_tab = st.tabs(
 
 with overview_tab:
 
-    st.subheader("Balance Sheet Dataset")
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.plotly_chart(
+            asset_allocation(df),
+            use_container_width=True,
+        )
+
+    with col2:
+
+        st.plotly_chart(
+            liability_allocation(df),
+            use_container_width=True,
+        )
+
+    st.divider()
+
+    st.subheader("Balance Sheet Data")
 
     st.dataframe(
         df,
@@ -249,24 +247,31 @@ with overview_tab:
 
 with capital_tab:
 
-    st.subheader("🏛️ Capital Risk")
+    left, right = st.columns([1, 2])
 
-    st.metric(
-        "CET1 Ratio",
-        f"{capital['CET1 Ratio']*100:.2f}%"
-    )
+    with left:
 
-    fig = create_bar_chart(
-        ["CET1", "RWA"],
-        [
-            capital["CET1"],
-            capital["RWA"],
-        ],
-        "Capital vs Risk Weighted Assets",
-        "Amount",
-    )
+        st.plotly_chart(
+            capital_gauge(
+                capital["CET1 Ratio"],
+                benchmark,
+            ),
+            use_container_width=True,
+        )
 
-    st.pyplot(fig)
+    with right:
+
+        st.plotly_chart(
+            bar_chart(
+                ["CET1", "RWA"],
+                [
+                    capital["CET1"],
+                    capital["RWA"],
+                ],
+                "Capital vs Risk Weighted Assets",
+            ),
+            use_container_width=True,
+        )
 
 
 # --------------------------------------------------
@@ -275,27 +280,25 @@ with capital_tab:
 
 with liquidity_tab:
 
-    st.subheader("💧 Liquidity Risk")
-
     st.metric(
         "Coverage Ratio",
         f"{liquidity['Coverage Ratio']:.2f}x"
     )
 
-    fig = create_bar_chart(
-        [
-            "Liquid Assets",
-            "Short Liabilities",
-        ],
-        [
-            liquidity["Liquid Assets"],
-            liquidity["Short-Term Liabilities"],
-        ],
-        "Liquidity Coverage",
-        "Amount",
+    st.plotly_chart(
+        bar_chart(
+            [
+                "Liquid Assets",
+                "Short Liabilities",
+            ],
+            [
+                liquidity["Liquid Assets"],
+                liquidity["Short-Term Liabilities"],
+            ],
+            "Liquidity Coverage",
+        ),
+        use_container_width=True,
     )
-
-    st.pyplot(fig)
 
 
 # --------------------------------------------------
@@ -304,28 +307,73 @@ with liquidity_tab:
 
 with interest_tab:
 
-    st.subheader("📈 Interest Rate Risk")
-
     st.metric(
         "Repricing Gap",
         f"{interest['Repricing Gap']:,.0f}"
     )
 
-    st.write(
-        f"**Classification:** {interest['Classification']}"
+    st.caption(
+        f"Classification: **{interest['Classification']}**"
     )
 
-    fig = create_bar_chart(
-        [
-            "Short Assets",
-            "Short Liabilities",
-        ],
-        [
-            interest["Short Assets"],
-            interest["Short Liabilities"],
-        ],
-        "Short-Term Repricing Gap",
-        "Amount",
+    st.plotly_chart(
+        bar_chart(
+            [
+                "Short Assets",
+                "Short Liabilities",
+            ],
+            [
+                interest["Short Assets"],
+                interest["Short Liabilities"],
+            ],
+            "Short-Term Repricing Gap",
+        ),
+        use_container_width=True,
+    )
+ # --------------------------------------------------
+# Rate Shock Simulator
+# --------------------------------------------------
+
+with simulator_tab:
+
+    st.subheader("⚡ Interest Rate Shock Simulator")
+
+    shock = st.slider(
+        "Interest Rate Shock (Basis Points)",
+        min_value=-300,
+        max_value=300,
+        value=0,
+        step=25,
     )
 
-    st.pyplot(fig)
+    delta_nii = simulate_rate_shock(
+        interest["Repricing Gap"],
+        shock,
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Rate Shock",
+            f"{shock:+} bps",
+        )
+
+    with col2:
+        st.metric(
+            "Estimated Change in Net Interest Income",
+            f"{delta_nii:,.2f}",
+        )
+
+    if delta_nii > 0:
+        st.success(
+            "The current balance sheet is expected to benefit from this interest rate scenario."
+        )
+    elif delta_nii < 0:
+        st.warning(
+            "The current balance sheet is expected to experience lower net interest income under this scenario."
+        )
+    else:
+        st.info(
+            "No change in estimated net interest income."
+        )
