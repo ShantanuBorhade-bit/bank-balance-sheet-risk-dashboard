@@ -1,0 +1,21 @@
+side,category,item,amount,maturity,risk_weight
+asset,Cash,Cash and Balances with RBI,120000,short,0.00
+asset,Securities,Treasury Bills,80000,short,0.00
+asset,Securities,Government Bonds,150000,long,0.20
+asset,Securities,Corporate Bonds,90000,long,0.50
+asset,Loans,Retail Loans,250000,long,0.75
+asset,Loans,Home Loans,350000,long,0.50
+asset,Loans,Vehicle Loans,120000,long,0.75
+asset,Loans,Corporate Loans,400000,long,1.00
+asset,Loans,MSME Loans,180000,long,0.85
+asset,Other,Fixed Assets,50000,long,1.00
+asset,Other,Other Assets,30000,short,1.00
+liability,Deposits,Savings Deposits,500000,short,
+liability,Deposits,Current Deposits,300000,short,
+liability,Deposits,Fixed Deposits,450000,long,
+liability,Borrowings,Short-term Borrowings,120000,short,
+liability,Borrowings,Long-term Debt,250000,long,
+liability,Other,Other Liabilities,60000,short,
+equity,Capital,CET1 Capital,180000,long,
+equity,Capital,Additional Tier 1,40000,long,
+equity,Capital,Tier 2 Capital,30000,long,
